@@ -15,7 +15,9 @@
     const NEXT_BATCH_BTN_ELEM_ID = "acestep-next-batch-btn";
     const STORAGE_KEY = "acestep.ui.autoplay";
     const POLL_INTERVAL_MS = 500;
-    const MAX_POLL_MS = 180000; // 3 min – stop polling if next batch never arrives
+    // 3 minutes: long enough for slow GPU generation but still cleans up if
+    // the server never becomes ready (e.g. generation was cancelled or failed).
+    const MAX_POLL_MS = 180000;
     const BOOT_POLL_INTERVAL_MS = 200;
     const BOOT_TIMEOUT_MS = 10000;
 
@@ -179,14 +181,10 @@
 
     const scanAll = () => {
         // Register any audio players that appeared since the last scan.
+        // Gradio renders <audio> elements directly in the main document tree,
+        // so a flat querySelectorAll is sufficient and avoids the cost of
+        // walking every shadow root on each mutation.
         document.querySelectorAll("audio").forEach(registerPlayer);
-
-        // Shadow roots (Gradio may render inside them).
-        document.querySelectorAll("*").forEach((el) => {
-            if (el.shadowRoot) {
-                el.shadowRoot.querySelectorAll("audio").forEach(registerPlayer);
-            }
-        });
 
         // Wire the checkbox persistence listener whenever the checkbox renders.
         const cb = getCheckboxInput();
@@ -196,6 +194,9 @@
     const scheduleScan = () => {
         if (scanScheduled) return;
         scanScheduled = true;
+        // requestAnimationFrame coalesces rapid DOM mutations into a single scan
+        // per frame, preventing the MutationObserver from running on every
+        // individual Gradio state update.
         requestAnimationFrame(() => {
             scanScheduled = false;
             scanAll();
@@ -203,7 +204,13 @@
     };
 
     const startObserver = () => {
-        new MutationObserver(scheduleScan).observe(document.documentElement, {
+        // Limit observation to the Gradio container when available, falling
+        // back to documentElement.  The requestAnimationFrame debounce in
+        // scheduleScan keeps the per-frame overhead low even on document-wide
+        // observations triggered by Gradio's frequent Svelte re-renders.
+        const target =
+            document.querySelector(".gradio-container") || document.documentElement;
+        new MutationObserver(scheduleScan).observe(target, {
             childList: true,
             subtree: true,
         });
