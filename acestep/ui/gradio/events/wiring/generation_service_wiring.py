@@ -70,6 +70,7 @@ def register_generation_service_handlers(
             generation_section["task_type"],
             generation_section["generation_mode"],
             generation_section["init_llm_checkbox"],
+            generation_section["dcw_enabled"],
         ],
     )
 
@@ -91,7 +92,7 @@ def register_generation_service_handlers(
         ],
     )
 
-    generation_section["init_btn"].click(
+    init_event = generation_section["init_btn"].click(
         fn=lambda *args: gen_h.init_service_wrapper(dit_handler, llm_handler, *args),
         inputs=[
             generation_section["checkpoint_dropdown"],
@@ -108,6 +109,7 @@ def register_generation_service_handlers(
             generation_section["mlx_dit_checkbox"],
             generation_section["generation_mode"],
             generation_section["batch_size_input"],
+            generation_section["vae_checkpoint"],
         ],
         outputs=[
             generation_section["init_status"],
@@ -122,9 +124,19 @@ def register_generation_service_handlers(
             generation_section["task_type"],
             generation_section["generation_mode"],
             generation_section["init_llm_checkbox"],
+            generation_section["dcw_enabled"],
             generation_section["audio_duration"],
             generation_section["batch_size_input"],
             generation_section["think_checkbox"],
+        ],
+    )
+    init_event.then(
+        fn=gen_h.update_dcw_defaults_for_think,
+        inputs=[generation_section["think_checkbox"]],
+        outputs=[
+            generation_section["dcw_mode"],
+            generation_section["dcw_scaler"],
+            generation_section["dcw_high_scaler"],
         ],
     )
 

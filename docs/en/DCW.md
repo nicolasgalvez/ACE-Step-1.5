@@ -140,18 +140,21 @@ result = generate_music(
 Open the standard Gradio UI, expand **Advanced DiT** → **🧪 DCW – Differential
 Correction in Wavelet domain (experimental)**, and tune the four
 sliders/dropdowns inside. **Enable DCW** is on by default with
-`mode="double"`, `scaler=0.05`, `high_scaler=0.02`, `wavelet="haar"` —
-uncheck it to A/B against the uncorrected sampler.
+`mode="double"` and `wavelet="haar"` — uncheck it to A/B against the
+uncorrected sampler.  The default strengths follow the current Think state:
+non-Think uses `scaler=0.05`, `high_scaler=0.02`, while Think uses
+`scaler=0.02`, `high_scaler=0.06`.
 
 ## Recommended starting values
 
 The defaults come from a grid search on the pure-DiT path (no LLM
 think-CoT): `dcw_mode="double"`, `dcw_scaler=0.05`,
 `dcw_high_scaler=0.02`, `dcw_wavelet="haar"`.  In LLM-think mode the
-overall DCW gain is small and the optimum band drifts slightly
-(`scaler≈0.02`, `high_scaler≈0.06`) — the global default still sits
-near that region, so we keep a single default and let power users
-override via the UI / API.
+overall DCW gain is small and the optimum band drifts slightly, so Gradio
+switches to `dcw_scaler=0.02` and `dcw_high_scaler=0.06` when Think is
+enabled.  Direct Python callers can override these values on
+`GenerationParams`; the HTTP generation routes currently use the
+`GenerationParams` defaults and do not expose per-request `dcw_*` fields.
 
 - `"low"` alone (`dcw_scaler=0.02`) is a safer, more conservative
   setting if `"double"` sounds too aggressive for a given track.

@@ -56,6 +56,7 @@ class BatchManagementHelperTests(unittest.TestCase):
             1.0,             # audio_cover_strength
             0.0,             # cover_noise_strength
             "text2music",    # task_type
+            False,           # no_fsq
             False,           # use_adg
             0.0,             # cfg_interval_start
             1.0,             # cfg_interval_end
@@ -102,6 +103,7 @@ class BatchManagementHelperTests(unittest.TestCase):
         self.assertEqual(params["mp3_bitrate"], "128k")
         self.assertEqual(params["mp3_sample_rate"], 48000)
         self.assertEqual(params["sampler_mode"], "euler")
+        self.assertFalse(params["no_fsq"])
         self.assertEqual(params["dcw_enabled"], True)
         self.assertEqual(params["dcw_mode"], "double")
         self.assertEqual(params["dcw_wavelet"], "haar")
@@ -126,9 +128,19 @@ class BatchManagementHelperTests(unittest.TestCase):
         self.assertEqual(params["fade_out_duration"], 0.0)
         self.assertEqual(params["dcw_enabled"], True)
         self.assertEqual(params["dcw_mode"], "double")
+        self.assertEqual(params["dcw_scaler"], 0.02)
+        self.assertEqual(params["dcw_high_scaler"], 0.06)
+        self.assertEqual(params["dcw_wavelet"], "haar")
+        self.assertFalse(params["no_fsq"])
+
+    def test_apply_param_defaults_uses_non_think_dcw_defaults_when_think_disabled(self):
+        """Defaults helper should use pure-DiT DCW defaults when Think is off."""
+        module, _state = load_batch_management_module(is_windows=False)
+        params = {"think_checkbox": False}
+        module._apply_param_defaults(params)
+        self.assertEqual(params["dcw_mode"], "double")
         self.assertEqual(params["dcw_scaler"], 0.05)
         self.assertEqual(params["dcw_high_scaler"], 0.02)
-        self.assertEqual(params["dcw_wavelet"], "haar")
 
     def test_extract_scores_handles_wrapped_values_and_missing_indices(self):
         """Score extraction should normalize mixed score payload shapes."""
