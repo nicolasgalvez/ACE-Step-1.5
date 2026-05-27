@@ -14,10 +14,10 @@ class _FakeParser:
 
         self._values = values
 
-    def get(self, key: str):
+    def get(self, key: str, default=None):
         """Return raw value for ``key`` from parser payload."""
 
-        return self._values.get(key)
+        return self._values.get(key, default)
 
     def str(self, key: str, default: str = "") -> str:
         """Return string value for ``key`` with default fallback."""
@@ -133,6 +133,36 @@ class ReleaseTaskRequestBuilderTests(unittest.TestCase):
 
         self.assertEqual("<|audio_code_7|>", request.audio_code_string)
         self.assertAlmostEqual(0.6, request.cover_noise_strength)
+
+    def test_build_request_defaults_sft_model_to_50_steps(self):
+        """SFT model requests should default to 50 inference steps when omitted."""
+
+        parser = _FakeParser({"model": "acestep-v15-xl-sft"})
+        request = build_generate_music_request(
+            parser=parser,
+            request_model_cls=lambda **kwargs: SimpleNamespace(**kwargs),
+            default_dit_instruction="default-instruction",
+            lm_default_temperature=0.85,
+            lm_default_cfg_scale=2.5,
+            lm_default_top_p=0.9,
+        )
+
+        self.assertEqual(50, request.inference_steps)
+
+    def test_build_request_defaults_turbo_model_to_8_steps(self):
+        """Turbo model requests should keep 8-step default when omitted."""
+
+        parser = _FakeParser({"model": "acestep-v15-xl-turbo"})
+        request = build_generate_music_request(
+            parser=parser,
+            request_model_cls=lambda **kwargs: SimpleNamespace(**kwargs),
+            default_dit_instruction="default-instruction",
+            lm_default_temperature=0.85,
+            lm_default_cfg_scale=2.5,
+            lm_default_top_p=0.9,
+        )
+
+        self.assertEqual(8, request.inference_steps)
 
 
 if __name__ == "__main__":

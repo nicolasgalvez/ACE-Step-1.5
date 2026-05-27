@@ -2,7 +2,34 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any, Optional
+
+
+def _has_model_token(token: str, model_name: str) -> bool:
+    """Return whether *token* appears as a delimited segment in model name."""
+
+    return re.search(rf"(^|[\\\\/._-]){token}($|[\\\\/._-])", model_name) is not None
+
+
+def _default_inference_steps_for_model(model_name: Optional[str]) -> int:
+    """Infer default diffusion steps from selected model name.
+
+    Defaults are aligned with Gradio behavior:
+    - turbo variants: 8
+    - sft variants: 50
+    - explicit non-turbo/non-sft model names (for example base): 32
+    - unspecified model: 8 (legacy API default)
+    """
+
+    normalized = (model_name or "").strip().lower()
+    if not normalized:
+        return 8
+    if _has_model_token("turbo", normalized):
+        return 8
+    if _has_model_token("sft", normalized):
+        return 50
+    return 32
 
 
 def build_generate_music_request(
@@ -36,6 +63,11 @@ def build_generate_music_request(
     if track_classes is not None and isinstance(track_classes, str):
         track_classes = [track_classes]
 
+    requested_model = parser.str("model") or None
+    seed_value = parser.get("seed")
+    if seed_value is None:
+        seed_value = -1
+
     payload = dict(
         prompt=parser.str("prompt"),
         global_caption=parser.str("global_caption"),
@@ -47,16 +79,19 @@ def build_generate_music_request(
         sample_mode=parser.bool("sample_mode"),
         sample_query=parser.str("sample_query"),
         use_format=parser.bool("use_format"),
-        model=parser.str("model") or None,
+        model=requested_model,
         bpm=parser.int("bpm"),
         key_scale=parser.str("key_scale"),
         time_signature=parser.str("time_signature"),
         audio_duration=parser.float("audio_duration"),
         vocal_language=parser.str("vocal_language", "en"),
-        inference_steps=parser.int("inference_steps", 8),
+        inference_steps=parser.int(
+            "inference_steps",
+            _default_inference_steps_for_model(requested_model),
+        ),
         guidance_scale=parser.float("guidance_scale", 7.0),
         use_random_seed=parser.bool("use_random_seed", True),
-        seed=parser.get("seed", -1),
+        seed=seed_value,
         batch_size=parser.int("batch_size"),
         repainting_start=parser.float("repainting_start", 0.0),
         repainting_end=parser.float("repainting_end"),
