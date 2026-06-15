@@ -124,6 +124,13 @@ def create_demo(init_params=None, language="en"):
         language=language,
     )
 
+    # Expose a single clean MCP tool (generate_song) when gradio's MCP server is
+    # enabled, instead of the 164 auto-exposed UI functions.
+    if os.environ.get("GRADIO_MCP_SERVER", "").lower() in ("true", "1"):
+        from acestep.ui.gradio.songscribe_mcp import register_clean_mcp_tool
+
+        register_clean_mcp_tool(demo)
+
     return demo
 
 

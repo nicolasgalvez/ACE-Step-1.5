@@ -15,6 +15,8 @@ from fastapi import APIRouter, HTTPException, Request, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
+from acestep.constants import TASK_INSTRUCTIONS
+
 # Global results directory inside project root
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DEFAULT_RESULTS_DIR = os.path.join(PROJECT_ROOT, "gradio_outputs").replace("\\", "/")
@@ -23,6 +25,33 @@ os.makedirs(DEFAULT_RESULTS_DIR, exist_ok=True)
 # API Key storage (set via setup_api_routes)
 _api_key: Optional[str] = None
 _api_key_lock = Lock()
+
+
+def _resolve_task_instruction(task_type: str, track_name: Optional[str]) -> str:
+    """Resolve the task-specific generation instruction for an API request.
+
+    Audio-to-audio tasks (extract/cover/repaint/lego/complete) each require their
+    own instruction; without it they fall back to the text2music default and the
+    task fails. Templates containing ``{TRACK_NAME}``/``{TRACK_CLASSES}`` use the
+    matching ``*_default`` entry when no track is supplied.
+
+    Args:
+        task_type: One of ``constants.TASK_TYPES`` (e.g. "extract", "cover").
+        track_name: Track name for ``{TRACK_NAME}`` templates; may be ``None``.
+
+    Returns:
+        The resolved instruction string from ``TASK_INSTRUCTIONS``.
+    """
+    template = TASK_INSTRUCTIONS.get(task_type)
+    if template is None:
+        return TASK_INSTRUCTIONS["text2music"]
+    if "{TRACK_NAME}" in template:
+        if track_name:
+            return template.format(TRACK_NAME=str(track_name).upper())
+        return TASK_INSTRUCTIONS.get(f"{task_type}_default", template)
+    if "{TRACK_CLASSES}" in template:
+        return TASK_INSTRUCTIONS.get(f"{task_type}_default", template)
+    return template
 
 
 def set_api_key(key: Optional[str]):
@@ -474,8 +503,9 @@ async def release_task(request: Request, authorization: Optional[str] = Header(N
                         sample_language = format_result.language
 
         # Build generation params with alias support
+        task_type = get_param("task_type", default="text2music")
         params = GenerationParams(
-            task_type=get_param("task_type", default="text2music"),
+            task_type=task_type,
             caption=caption,
             lyrics=lyrics,
             bpm=sample_bpm or get_param("bpm"),
@@ -499,6 +529,13 @@ async def release_task(request: Request, authorization: Optional[str] = Header(N
             repaint_mode=get_param("repaint_mode", default="balanced") or "balanced",
             repaint_strength=float(
                 get_param("repaint_strength", default=0.5) or 0.5,
+            ),
+            src_audio=get_param("src_audio_path", "src_audio", "ctx_audio", default=None),
+            reference_audio=get_param(
+                "reference_audio_path", "reference_audio", "ref_audio", default=None
+            ),
+            instruction=_resolve_task_instruction(
+                task_type, get_param("track_name", default=None)
             ),
         )
 
