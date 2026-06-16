@@ -70,10 +70,6 @@ COPY . /app/
 # --no-dev skips dev dependencies, --frozen uses exact lockfile versions.
 RUN uv sync --frozen --no-dev --python python3.11
 
-# Gradio's built-in MCP server (mcp_server=True / GRADIO_MCP_SERVER) requires the
-# `mcp` package, which is not a base dependency.
-RUN uv pip install --python /app/.venv/bin/python mcp
-
 # ==================== Runtime directories ====================
 RUN mkdir -p /app/checkpoints /app/gradio_outputs /app/output
 
