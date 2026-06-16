@@ -137,20 +137,6 @@ if [ "${ACESTEP_INIT_SERVICE:-true}" = "true" ]; then
     echo "Auto-init    : DiT=${ACESTEP_CONFIG_PATH:-auto}  LM=${ACESTEP_LM_MODEL_PATH:-none}"
 fi
 
-# Pre-download extra DiT models on boot so they're present (and selectable in the
-# UI) on any `docker compose up`. Idempotent — acestep-download skips models that
-# already exist. ACESTEP_DOWNLOAD_ALL=true fetches everything; otherwise the
-# space/comma list in ACESTEP_DOWNLOAD_MODELS.
-if [ "${ACESTEP_DOWNLOAD_ALL:-false}" = "true" ]; then
-    echo "Downloading all models ..."
-    uv run acestep-download --all || echo "WARN: 'acestep-download --all' failed; continuing"
-elif [ -n "${ACESTEP_DOWNLOAD_MODELS:-}" ]; then
-    for _model in $(echo "${ACESTEP_DOWNLOAD_MODELS}" | tr ',' ' '); do
-        echo "Ensuring model: ${_model}"
-        uv run acestep-download --model "${_model}" || echo "WARN: download of '${_model}' failed; continuing"
-    done
-fi
-
 if [ "${ACESTEP_MODE}" = "api" ]; then
     echo "Starting REST API server on 0.0.0.0:${ACESTEP_API_PORT:-8001} ..."
     exec uv run python -m acestep.api_server \
