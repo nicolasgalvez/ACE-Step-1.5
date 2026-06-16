@@ -70,10 +70,6 @@ COPY . /app/
 # --no-dev skips dev dependencies, --frozen uses exact lockfile versions.
 RUN uv sync --frozen --no-dev --python python3.11
 
-# Gradio's built-in MCP server (mcp_server=True / GRADIO_MCP_SERVER) requires the
-# `mcp` package, which is not a base dependency.
-RUN uv pip install --python /app/.venv/bin/python mcp
-
 # ==================== Runtime directories ====================
 RUN mkdir -p /app/checkpoints /app/gradio_outputs /app/output
 
@@ -135,20 +131,6 @@ if [ "${ACESTEP_INIT_SERVICE:-true}" = "true" ]; then
     [ -n "${ACESTEP_CONFIG_PATH:-}" ]   && INIT_ARGS="${INIT_ARGS} --config_path ${ACESTEP_CONFIG_PATH}"
     [ -n "${ACESTEP_LM_MODEL_PATH:-}" ] && INIT_ARGS="${INIT_ARGS} --init_llm true --lm_model_path ${ACESTEP_LM_MODEL_PATH}"
     echo "Auto-init    : DiT=${ACESTEP_CONFIG_PATH:-auto}  LM=${ACESTEP_LM_MODEL_PATH:-none}"
-fi
-
-# Pre-download extra DiT models on boot so they're present (and selectable in the
-# UI) on any `docker compose up`. Idempotent — acestep-download skips models that
-# already exist. ACESTEP_DOWNLOAD_ALL=true fetches everything; otherwise the
-# space/comma list in ACESTEP_DOWNLOAD_MODELS.
-if [ "${ACESTEP_DOWNLOAD_ALL:-false}" = "true" ]; then
-    echo "Downloading all models ..."
-    uv run acestep-download --all || echo "WARN: 'acestep-download --all' failed; continuing"
-elif [ -n "${ACESTEP_DOWNLOAD_MODELS:-}" ]; then
-    for _model in $(echo "${ACESTEP_DOWNLOAD_MODELS}" | tr ',' ' '); do
-        echo "Ensuring model: ${_model}"
-        uv run acestep-download --model "${_model}" || echo "WARN: download of '${_model}' failed; continuing"
-    done
 fi
 
 if [ "${ACESTEP_MODE}" = "api" ]; then
